@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>I am'nt different</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.7/hls.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0b0b0e; --surf:#111116; --surf2:#18181f;
+  --brd:rgba(255,255,255,.07); --brd2:rgba(255,255,255,.13);
+  --txt:#eeeef5; --dim:#6b6b88; --red:#e8303a;
+  --sw:252px; --th:50px; --bh:38px;
+}
+html,body{height:100%;font-family:'IBM Plex Sans',sans-serif;background:var(--bg);color:var(--txt);overflow:hidden}
+
+/* GRID */
+.app{display:grid;grid-template-rows:var(--th) 1fr var(--bh);grid-template-columns:var(--sw) 1fr;height:100vh}
+
+/* TOPBAR */
+.topbar{grid-column:1/-1;background:var(--surf);border-bottom:1px solid var(--brd2);display:flex;align-items:center;justify-content:space-between;padding:0 1.2rem;gap:1rem;z-index:200}
+.logo{display:flex;align-items:center;gap:.5rem;flex-shrink:0}
+.pulse{width:8px;height:8px;border-radius:50%;background:var(--red);animation:pp 1.8s ease-in-out infinite}
+@keyframes pp{0%,100%{box-shadow:0 0 0 0 rgba(232,48,58,.6)}60%{box-shadow:0 0 0 6px rgba(232,48,58,0)}}
+.logo-txt{font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:.87rem;letter-spacing:.04em}
+.logo-txt em{color:var(--red);font-style:normal}
+.top-ch{flex:1;display:flex;align-items:center;gap:.5rem;overflow:hidden;min-width:0}
+.top-pill{flex-shrink:0;font-family:'IBM Plex Mono',monospace;font-size:.57rem;font-weight:700;letter-spacing:.1em;padding:.18rem .5rem;border-radius:3px;color:#fff;background:#333;transition:background .3s}
+.top-name{font-size:.79rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-r{display:flex;align-items:center;gap:.7rem;flex-shrink:0}
+.live-badge{display:flex;align-items:center;gap:.3rem;background:var(--red);color:#fff;font-family:'IBM Plex Mono',monospace;font-size:.57rem;font-weight:700;letter-spacing:.12em;padding:.18rem .52rem;border-radius:3px}
+#clock{font-family:'IBM Plex Mono',monospace;font-size:.79rem;font-weight:500}
+
+/* SIDEBAR */
+.sidebar{background:var(--surf);border-right:1px solid var(--brd2);display:flex;flex-direction:column;overflow:hidden}
+.sb-hd{padding:.6rem 1rem;font-family:'IBM Plex Mono',monospace;font-size:.57rem;letter-spacing:.18em;color:var(--dim);text-transform:uppercase;border-bottom:1px solid var(--brd);flex-shrink:0}
+.ch-list{flex:1;overflow-y:auto;padding:.28rem}
+.ch-list::-webkit-scrollbar{width:3px}
+.ch-list::-webkit-scrollbar-thumb{background:var(--brd2);border-radius:2px}
+.ch-btn{display:flex;align-items:center;gap:.58rem;width:100%;padding:.52rem .58rem;margin-bottom:1px;border:none;background:transparent;cursor:pointer;border-radius:7px;transition:background .1s;text-align:left}
+.ch-btn:hover{background:var(--surf2)}
+.ch-btn.active{background:var(--surf2)}
+.ch-thumb{width:32px;height:32px;border-radius:6px;flex-shrink:0;display:grid;place-items:center;font-size:.85rem;background:rgba(255,255,255,.05);overflow:hidden}
+.ch-thumb img{width:100%;height:100%;object-fit:contain;padding:3px;border-radius:6px}
+.ch-info{flex:1;min-width:0}
+.ch-nm{font-size:.75rem;font-weight:600;color:var(--txt);line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-ds{font-size:.61rem;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ch-bar{width:3px;height:15px;border-radius:2px;flex-shrink:0;opacity:0;transition:opacity .2s}
+.ch-btn.active .ch-bar{opacity:1}
+
+/* PLAYER */
+.player{background:#000;position:relative;display:flex;flex-direction:column;overflow:hidden}
+.vid-wrap{flex:1;position:relative;overflow:hidden;background:#000;display:flex;align-items:center;justify-content:center}
+
+/* THE VIDEO */
+#tv{width:100%;height:100%;object-fit:contain;display:block}
+
+/* SPLASH */
+.splash{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.7rem;text-align:center;padding:2rem;pointer-events:none}
+.splash-icon{font-size:3.2rem;opacity:.3}
+.splash-title{font-size:1rem;font-weight:600;opacity:.4}
+.splash-hint{font-family:'IBM Plex Mono',monospace;font-size:.72rem;opacity:.18;letter-spacing:.05em}
+
+/* LOADING SPINNER */
+.spinner{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.5);z-index:10}
+.spinner.show{display:flex}
+.spin-ring{width:40px;height:40px;border-radius:50%;border:3px solid rgba(255,255,255,.1);border-top-color:#fff;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ERROR */
+.err-box{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:.8rem;padding:2rem;text-align:center;background:#000;z-index:20}
+.err-box.show{display:flex}
+.err-icon{font-size:2.5rem;opacity:.4}
+.err-msg{font-size:.85rem;opacity:.5;max-width:340px;line-height:1.6}
+.err-retry{margin-top:.3rem;padding:.45rem 1.2rem;background:var(--red);border:none;border-radius:5px;color:#fff;font-family:'IBM Plex Sans',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+.err-retry:hover{opacity:.85}
+.err-link{font-size:.7rem;color:var(--dim);text-decoration:none;margin-top:.2rem}
+.err-link:hover{color:var(--txt)}
+
+/* CHANNEL BADGE */
+.ch-overlay{position:absolute;top:.85rem;left:.85rem;z-index:30;background:rgba(0,0,0,.72);backdrop-filter:blur(8px);border-radius:5px;padding:.32rem .75rem;display:flex;align-items:center;gap:.45rem;font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:#fff;opacity:0;pointer-events:none;transition:opacity .3s}
+.ch-overlay.show{opacity:1}
+
+/* FLASH */
+.flash{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none;z-index:40;transition:opacity .2s}
+.flash.on{opacity:1}
+
+/* INFO BAR */
+.info-bar{height:30px;background:var(--surf2);border-top:1px solid var(--brd);display:flex;align-items:center;gap:.8rem;padding:0 .9rem;flex-shrink:0}
+.ib-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0}
+.ib-name{font-size:.72rem;font-weight:600}
+.ib-desc{font-size:.66rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.ib-ext{flex-shrink:0;font-size:.64rem;color:var(--dim);text-decoration:none;padding:.18rem .5rem;border-radius:4px;border:1px solid var(--brd2);transition:all .12s;font-family:'IBM Plex Mono',monospace}
+.ib-ext:hover{color:var(--txt);background:var(--surf)}
+
+/* BOTTOMBAR */
+.bottombar{grid-column:1/-1;background:var(--surf);border-top:1px solid var(--brd2);display:flex;align-items:center;padding:0 .9rem;gap:.7rem;overflow:hidden}
+.tk-outer{flex:1;overflow:hidden;position:relative}
+.tk-outer::before,.tk-outer::after{content:'';position:absolute;top:0;bottom:0;width:32px;z-index:1;pointer-events:none}
+.tk-outer::before{left:0;background:linear-gradient(to right,var(--surf),transparent)}
+.tk-outer::after{right:0;background:linear-gradient(to left,var(--surf),transparent)}
+.ticker{display:flex;gap:2.5rem;white-space:nowrap;animation:tscroll 75s linear infinite}
+@keyframes tscroll{from{transform:translateX(60vw)}to{transform:translateX(-100%)}}
+.tick{font-size:.69rem;color:var(--dim);display:flex;align-items:center;gap:.32rem}
+.tick-dot{width:3px;height:3px;border-radius:50%;background:var(--red);flex-shrink:0}
+.bot-now{font-family:'IBM Plex Mono',monospace;font-size:.61rem;color:var(--dim);flex-shrink:0;display:flex;align-items:center;gap:.32rem}
+.bot-num{color:var(--txt);font-weight:700}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="logo">
+      <div class="pulse"></div>
+      <span class="logo-txt">I am'nt <em>different</em></span>
+    </div>
+    <div class="top-ch">
+      <span class="top-pill" id="top-pill">CH —</span>
+      <span class="top-name" id="top-name">Selecciona un canal</span>
+    </div>
+    <div class="top-r">
+      <div class="live-badge">● EN DIRECTO</div>
+      <div id="clock">00:00:00</div>
+    </div>
+  </header>
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sb-hd">Canales en directo</div>
+    <div class="ch-list" id="ch-list"></div>
+  </aside>
+
+  <!-- PLAYER -->
+  <main class="player">
+    <div class="vid-wrap" id="vid-wrap">
+
+      <video id="tv" controls playsinline></video>
+
+      <div class="splash" id="splash">
+        <div class="splash-icon">📺</div>
+        <div class="splash-title">Elige un canal para ver</div>
+        <div class="splash-hint">← elige en la barra lateral</div>
+      </div>
+
+      <div class="spinner" id="spinner">
+        <div class="spin-ring"></div>
+      </div>
+
+      <div class="err-box" id="err-box">
+        <div class="err-icon">📡</div>
+        <div class="err-msg" id="err-msg">No se pudo cargar el canal. El stream puede estar temporalmente no disponible.</div>
+        <button class="err-retry" onclick="retryCurrentChannel()">↺ Reintentar</button>
+        <a class="err-link" id="err-link" href="#" target="_blank" rel="noopener">Abrir en web oficial →</a>
+      </div>
+
+      <div class="ch-overlay" id="ch-overlay">
+        <span id="ov-num" style="font-weight:700"></span>
+        <span id="ov-name"></span>
+      </div>
+
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <div class="info-bar">
+      <div class="ib-dot" id="ib-dot"></div>
+      <span class="ib-name" id="ib-name">—</span>
+      <span class="ib-desc" id="ib-desc"></span>
+      <a class="ib-ext" id="ib-ext" href="#" target="_blank" rel="noopener">↗ Web oficial</a>
+    </div>
+  </main>
+
+  <!-- TICKER -->
+  <footer class="bottombar">
+    <div class="bot-now">
+      <span>VIENDO:</span>
+      <span class="bot-num" id="bot-num">—</span>
+    </div>
+    <div class="tk-outer">
+      <div class="ticker" id="ticker"></div>
+    </div>
+  </footer>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+//  CANALES — streams HLS/M3U8 en abierto
+//  Fuente: TDTChannels (github.com/LaQuay/TDTChannels)
+//  Todos son canales de emisión pública y gratuita
+// ══════════════════════════════════════════════════════════
+const CHS = [
+  {
+    id: 1,
+    name: "Canal 24h · RTVE",
+    desc: "Noticias España · Canal público estatal",
+    color: "#0066CC",
+    emoji: "📡",
+    logo: "https://pbs.twimg.com/profile_images/1634293543987453954/mb1Rzmso_200x200.jpg",
+    // Stream oficial RTVE — HLS público sin restricciones
+    streams: [
+      "https://rtvelivestream.rtve.es/rtvesec/24h/24h_main_dvr.m3u8",
+      "https://rtvelivestreamv3.akamaized.net/24h_main_dvr_1080.m3u8",
+    ],
+    web: "https://www.rtve.es/play/videos/directo/24h/",
+  },
+  {
+    id: 2,
+    name: "La 1 · RTVE",
+    desc: "Canal generalista público · España",
+    color: "#0055A4",
+    emoji: "📺",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/La_1_-_RTVE_2021.svg/120px-La_1_-_RTVE_2021.svg.png",
+    streams: [
+      "https://rtvelivestreamv3.akamaized.net/la1_main_dvr_1080.m3u8",
+      "https://rtvelivestream.rtve.es/rtvesec/la1/la1_main_dvr.m3u8",
+    ],
+    web: "https://www.rtve.es/play/videos/directo/la-1/",
+  },
+  {
+    id: 3,
+    name: "La 2 · RTVE",
+    desc: "Cultura y ciencia · Canal público",
+    color: "#E52020",
+    emoji: "📻",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/cf/La_2_-_RTVE_2021.svg/120px-La_2_-_RTVE_2021.svg.png",
+    streams: [
+      "https://rtvelivestreamv3.akamaized.net/la2_main_dvr_1080.m3u8",
+      "https://rtvelivestream.rtve.es/rtvesec/la2/la2_main_dvr.m3u8",
+    ],
+    web: "https://www.rtve.es/play/videos/directo/la-2/",
+  },
+  {
+    id: 4,
+    name: "Teledeporte · RTVE",
+    desc: "Deporte 24h · Canal público",
+    color: "#00843D",
+    emoji: "⚽",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/04/Teledeporte_2021.svg/120px-Teledeporte_2021.svg.png",
+    streams: [
+      "https://rtvelivestreamv3.akamaized.net/tdp_main_dvr_1080.m3u8",
+      "https://rtvelivestream.rtve.es/rtvesec/tdp/tdp_main_dvr.m3u8",
+    ],
+    web: "https://www.rtve.es/play/videos/directo/teledeporte/",
+  },
+  {
+    id: 5,
+    name: "Clan · RTVE",
+    desc: "Infantil · Canal público",
+    color: "#E8A000",
+    emoji: "🎠",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Clan_-_RTVE_2021.svg/120px-Clan_-_RTVE_2021.svg.png",
+    streams: [
+      "https://rtvelivestreamv3.akamaized.net/clan_main_dvr_1080.m3u8",
+      "https://rtvelivestream.rtve.es/rtvesec/clan/clan_main_dvr.m3u8",
+    ],
+    web: "https://www.rtve.es/play/videos/directo/clan/",
+  },
+  {
+    id: 6,
+    name: "Euronews Español",
+    desc: "Noticias europeas 24h en español",
+    color: "#003399",
+    emoji: "🇪🇺",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/7a/Euronews_2022.svg/120px-Euronews_2022.svg.png",
+    streams: [
+      "https://euronews-live-spa-es.fast.rakuten.tv/v1/master/0547f18649bd788bec7b67b746e47670f558b6b2/production-LiveChannel-6571/bitok/eyJzdGlkIjoiMDA0YjY0NTMtYjY2MC00ZTZkLTlkNzEtMTk3YTM3ZDZhZWIxIiwibWt0IjoiZXMiLCJjaCI6NjU3MSwicHRmIjoxfQ==/26034/euronews-es.m3u8",
+    ],
+    web: "https://es.euronews.com/live",
+  },
+  {
+    id: 7,
+    name: "DW Español",
+    desc: "Deutsche Welle · Desde Alemania",
+    color: "#A00000",
+    emoji: "🌐",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/7/75/Deutsche_Welle_Logo.svg/120px-Deutsche_Welle_Logo.svg.png",
+    streams: [
+      "https://dwamdstream102.akamaized.net/hls/live/2015525/dwstream102/index.m3u8",
+    ],
+    web: "https://www.dw.com/es/",
+  },
+  {
+    id: 8,
+    name: "France 24 Español",
+    desc: "La visión francesa del mundo",
+    color: "#CF0A2C",
+    emoji: "🗼",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/3/39/Logo_France_24_2022.svg/120px-Logo_France_24_2022.svg.png",
+    streams: [
+      "https://static.france24.com/live/F24_ES_LO_HLS/live_web.m3u8",
+    ],
+    web: "https://www.france24.com/es/",
+  },
+  {
+    id: 9,
+    name: "RT en Español",
+    desc: "Russia Today · Perspectiva alternativa",
+    color: "#0062AE",
+    emoji: "📻",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/RT_logo.svg/120px-RT_logo.svg.png",
+    streams: [
+      "https://rt-esp.rttv.com/live/rtespanol/playlist.m3u8",
+    ],
+    web: "https://actualidad.rt.com/",
+  },
+  {
+    id: 10,
+    name: "Al Jazeera Español",
+    desc: "Qatar · Cobertura global 24h",
+    color: "#900000",
+    emoji: "🌍",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/b1/Aljazeera_white.svg/120px-Aljazeera_white.svg.png",
+    streams: [
+      "https://aljazeera-spn-apple-live.adaptive.level3.net/applehttp/aljazeera_span/QualityLevels(628000)/Manifest(video,format=m3u8-aapl)",
+    ],
+    web: "https://www.aljazeera.com/espanol/",
+  },
+  {
+    id: 11,
+    name: "CGTN Español",
+    desc: "China Global · Noticias 24h",
+    color: "#DE2910",
+    emoji: "🐉",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/1/15/CGTN_logo.svg/120px-CGTN_logo.svg.png",
+    streams: [
+      "https://livees.cgtn.com/1000e/prog_index.m3u8",
+    ],
+    web: "https://espanol.cgtn.com/",
+  },
+  {
+    id: 12,
+    name: "Telemadrid",
+    desc: "Canal autonómico · Madrid",
+    color: "#C00020",
+    emoji: "🏙️",
+    logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/ed/Telemadrid_logo.svg/120px-Telemadrid_logo.svg.png",
+    streams: [
+      "https://telemadridlive.hls.adaptive.level3.net/telemadrid/telemadrid1/bitrate_4.m3u8",
+    ],
+    web: "https://www.telemadrid.es/",
+  },
+];
+
+const TICKER = [
+  "📡 Canal 24h RTVE — Noticias e información continua desde Torrespaña, Madrid",
+  "📺 La 1 RTVE — La televisión pública líder de audiencia en España",
+  "🇪🇺 Euronews España — Noticias europeas y mundiales las 24 horas en español",
+  "🌐 DW Español — Deutsche Welle, Alemania informa al mundo en tu idioma",
+  "🗼 France 24 Español — La visión francesa de la actualidad internacional",
+  "🌍 Al Jazeera Español — Coberturas exclusivas desde Oriente Medio y África",
+  "🐉 CGTN Español — China Global Television Network en directo",
+  "📻 RT en Español — Otra perspectiva de la actualidad mundial",
+  "⚽ Teledeporte RTVE — El deporte español en directo las 24 horas",
+  "🏙️ Telemadrid — La televisión de la Comunidad de Madrid",
+];
+
+// ─── STATE ───────────────────────────────────────────
+let hls = null;
+let current = null;
+let currentStreamIdx = 0;
+
+// ─── INIT ────────────────────────────────────────────
+function init() {
+  // Sidebar
+  document.getElementById('ch-list').innerHTML = CHS.map(ch => `
+    <button class="ch-btn" data-id="${ch.id}" onclick="tune(${ch.id})">
+      <div class="ch-thumb">
+        <img src="${ch.logo}" alt="${ch.name}"
+          onerror="this.style.display='none';this.parentNode.textContent='${ch.emoji}'">
+      </div>
+      <div class="ch-info">
+        <div class="ch-nm">${ch.name}</div>
+        <div class="ch-ds">${ch.desc}</div>
+      </div>
+      <div class="ch-bar" style="background:${ch.color}"></div>
+    </button>
+  `).join('');
+
+  // Ticker
+  const items = [...TICKER, ...TICKER];
+  document.getElementById('ticker').innerHTML =
+    items.map(t => `<span class="tick"><span class="tick-dot"></span>${t}</span>`).join('');
+
+  // Clock
+  setInterval(() => {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+  }, 1000);
+  document.getElementById('clock').textContent =
+    new Date().toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+  // Keyboard shortcuts
+  document.addEventListener('keydown', e => {
+    const n = parseInt(e.key);
+    if (n >= 1 && n <= 9) tune(n);
+    if (e.key === '0') tune(10);
+  });
+}
+
+// ─── TUNE ────────────────────────────────────────────
+function tune(id) {
+  const ch = CHS.find(c => c.id === id);
+  if (!ch) return;
+
+  // Flash
+  const fl = document.getElementById('flash');
+  fl.classList.add('on');
+  setTimeout(() => fl.classList.remove('on'), 240);
+
+  current = ch;
+  currentStreamIdx = 0;
+
+  // Sidebar active
+  document.querySelectorAll('.ch-btn').forEach(b =>
+    b.classList.toggle('active', parseInt(b.dataset.id) === id)
+  );
+
+  // Topbar
+  const pill = document.getElementById('top-pill');
+  pill.textContent = `CH ${id}`;
+  pill.style.background = ch.color;
+  document.getElementById('top-name').textContent = ch.name;
+
+  // Channel overlay badge
+  const ov = document.getElementById('ch-overlay');
+  document.getElementById('ov-num').textContent = `CH ${id}`;
+  document.getElementById('ov-name').textContent = ch.name;
+  ov.classList.add('show');
+  setTimeout(() => ov.classList.remove('show'), 2500);
+
+  // Info bar
+  document.getElementById('ib-dot').style.background = ch.color;
+  document.getElementById('ib-name').textContent = ch.name;
+  document.getElementById('ib-desc').textContent = ch.desc;
+  document.getElementById('ib-ext').href = ch.web;
+  document.getElementById('bot-num').textContent = `CH ${id} · ${ch.name}`;
+
+  // Error link
+  document.getElementById('err-link').href = ch.web;
+
+  // Hide splash
+  document.getElementById('splash').style.display = 'none';
+
+  // Load stream
+  loadStream(ch.streams[0]);
+}
+
+// ─── LOAD STREAM ─────────────────────────────────────
+function loadStream(url) {
+  const video = document.getElementById('tv');
+  showSpinner(true);
+  hideError();
+
+  // Destroy previous HLS instance
+  if (hls) {
+    hls.destroy();
+    hls = null;
+  }
+
+  if (Hls.isSupported()) {
+    hls = new Hls({
+      enableWorker: true,
+      lowLatencyMode: false,
+      backBufferLength: 90,
+    });
+
+    hls.loadSource(url);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      showSpinner(false);
+      video.play().catch(() => {});
+    });
+
+    hls.on(Hls.Events.ERROR, (event, data) => {
+      if (data.fatal) {
+        handleStreamError(data);
+      }
+    });
+
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    // Safari native HLS
+    video.src = url;
+    video.addEventListener('loadedmetadata', () => {
+      showSpinner(false);
+      video.play().catch(() => {});
+    }, {once: true});
+    video.addEventListener('error', () => {
+      tryNextStream();
+    }, {once: true});
+  } else {
+    showError("Tu navegador no soporta reproducción HLS. Intenta con Chrome o Firefox.");
+  }
+}
+
+// ─── ERROR HANDLING ───────────────────────────────────
+function handleStreamError(data) {
+  console.error('HLS Error:', data.type, data.details);
+  if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+    tryNextStream();
+  } else if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+    hls.recoverMediaError();
+  } else {
+    tryNextStream();
+  }
+}
+
+function tryNextStream() {
+  if (!current) return;
+  currentStreamIdx++;
+  if (currentStreamIdx < current.streams.length) {
+    console.log('Trying fallback stream:', current.streams[currentStreamIdx]);
+    loadStream(current.streams[currentStreamIdx]);
+  } else {
+    showSpinner(false);
+    showError(`El stream de ${current.name} no está disponible ahora mismo.<br>Puedes verlo en su web oficial.`);
+  }
+}
+
+function retryCurrentChannel() {
+  if (current) {
+    currentStreamIdx = 0;
+    tune(current.id);
+  }
+}
+
+// ─── UI HELPERS ───────────────────────────────────────
+function showSpinner(v) {
+  document.getElementById('spinner').classList.toggle('show', v);
+}
+
+function showError(msg) {
+  const box = document.getElementById('err-box');
+  document.getElementById('err-msg').innerHTML = msg;
+  box.classList.add('show');
+}
+
+function hideError() {
+  document.getElementById('err-box').classList.remove('show');
+}
+
+// ─── START ────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>
